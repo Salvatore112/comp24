@@ -7,9 +7,9 @@
 (source
  (github Salvatore112/comp24))
 
-(authors "Salvatore112", "Osogi")
+(authors "Salvatore112" , "Osogi")
 
-(maintainers "Salvatore112", "Osogi")
+(maintainers "Salvatore112" , "Osogi")
 
 (license LGPL-2.1-or-later WITH OCaml-LGPL-linking-exception)
 
@@ -21,7 +21,7 @@
   dune
   bisect_ppx
   (llvm
-   (= "16.0.6+nnp"))))
+   (= "15.0.7+nnp-2"))))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
 ; Big change!

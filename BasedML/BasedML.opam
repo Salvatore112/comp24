@@ -10,7 +10,7 @@ depends: [
   "ocaml"
   "dune" {>= "3.8"}
   "bisect_ppx"
-  "llvm" {= "16.0.6+nnp"}
+  "llvm" {= "15.0.7+nnp-2"}
   "odoc" {with-doc}
 ]
 build: [
@@ -29,5 +29,5 @@ build: [
 ]
 dev-repo: "git+https://github.com/Salvatore112/comp24.git"
 depexts: [
-  [ "clang-14" ] {os-distribution = "ubuntu"}
+  [ "llvm-15-dev" "clang-15" ] {os-distribution = "ubuntu"}
 ]
