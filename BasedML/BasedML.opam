@@ -28,3 +28,6 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/Salvatore112/comp24.git"
+depexts: [
+  [ "clang-14" ] {os-distribution = "ubuntu"}
+]
