@@ -185,3 +185,81 @@ let%expect_test _ =
         ))
       ] |}]
 ;;
+
+let%expect_test _ =
+  test_prog
+    [ DSingleLet
+        ( NotRec
+        , DLet
+            ( PIdentifier "x"
+            , EApplication
+                ( EFunction
+                    ( PIdentifier "x"
+                    , EApplication
+                        ( EApplication (EIdentifier "( + )", EIdentifier "x")
+                        , EConstant (CInt 1) ) )
+                , EConstant (CInt 65) ) ) )
+    ];
+  [%expect
+    {|
+    [(ANFSingleLet (NotRec,
+        (ANFDec ((PIdentifier "x"),
+           (ANFLetIn (NotRec, (PIdentifier "$ANF_VAR$3"),
+              (CApp (
+                 (ImmediateFunc ((PIdentifier "x"),
+                    (ANFLetIn (NotRec, (PIdentifier "$ANF_VAR$1"),
+                       (CApp ((ImmediateIdentifier "( + )"),
+                          (ImmediateIdentifier "x"))),
+                       (ANFLetIn (NotRec, (PIdentifier "$ANF_VAR$2"),
+                          (CApp ((ImmediateIdentifier "$ANF_VAR$1"),
+                             (ImmediateInt 1))),
+                          (ANFCEexpr
+                             (CImmExpr (ImmediateIdentifier "$ANF_VAR$2")))
+                          ))
+                       ))
+                    )),
+                 (ImmediateInt 65))),
+              (ANFCEexpr (CImmExpr (ImmediateIdentifier "$ANF_VAR$3")))))
+           ))
+        ))
+      ] |}]
+;;
+
+let%expect_test _ =
+  test_prog
+    [ DSingleLet
+        ( NotRec
+        , DLet
+            ( PIdentifier "x"
+            , EApplication
+                ( EConstant (CInt 65)
+                , EFunction
+                    ( PIdentifier "y"
+                    , EApplication
+                        ( EApplication (EIdentifier "( + )", EIdentifier "y")
+                        , EConstant (CInt 1) ) ) ) ) )
+    ];
+  [%expect
+    {|
+    [(ANFSingleLet (NotRec,
+        (ANFDec ((PIdentifier "x"),
+           (ANFLetIn (NotRec, (PIdentifier "$ANF_VAR$3"),
+              (CApp ((ImmediateInt 65),
+                 (ImmediateFunc ((PIdentifier "y"),
+                    (ANFLetIn (NotRec, (PIdentifier "$ANF_VAR$1"),
+                       (CApp ((ImmediateIdentifier "( + )"),
+                          (ImmediateIdentifier "y"))),
+                       (ANFLetIn (NotRec, (PIdentifier "$ANF_VAR$2"),
+                          (CApp ((ImmediateIdentifier "$ANF_VAR$1"),
+                             (ImmediateInt 1))),
+                          (ANFCEexpr
+                             (CImmExpr (ImmediateIdentifier "$ANF_VAR$2")))
+                          ))
+                       ))
+                    ))
+                 )),
+              (ANFCEexpr (CImmExpr (ImmediateIdentifier "$ANF_VAR$3")))))
+           ))
+        ))
+      ] |}]
+;;
