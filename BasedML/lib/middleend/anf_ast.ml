@@ -14,6 +14,7 @@ type immexpr =
   | ImmediateNil
   | ImmediateIdentifier of string 
   | ImmediateTuple of aexpr list
+  | ImmediateFunc of pattern * aexpr
 [@@deriving show { with_path = false }]
 
 (* cexprs *)
@@ -30,7 +31,6 @@ and aexpr =
   | ANFTuple of aexpr list
   | ANFMatch of pattern * (pattern * aexpr) list
   | ANFConstraint of aexpr * type_name
-  | ANFFunction of pattern * aexpr
 [@@deriving show { with_path = false }]
 
 (* Anf declarations *)

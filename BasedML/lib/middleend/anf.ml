@@ -47,7 +47,6 @@ let rec anf_of_exp e expr_with_hole =
         | [] -> List.rev acc
       in
       expr_with_hole (ImmediateTuple (convert_tuple_elements exps []))
-    | EFunction (pat, body) -> ANFFunction (pat, helper body expr_with_hole)
     | EApplication (left, right) ->
       helper left (fun left_immediate ->
         helper right (fun right_immediate ->
@@ -67,6 +66,10 @@ let rec anf_of_exp e expr_with_hole =
           , helper if_body (fun if_body_immediate -> expr_with_hole if_body_immediate)
           , helper else_body (fun else_body_immediate ->
               expr_with_hole else_body_immediate) ))
+    | EFunction (pat, body) ->
+      (* Convert the body of the function into ANF *)
+      let anf_body = anf_of_exp body (fun imm -> ANFCEexpr (CImmExpr imm)) in
+      expr_with_hole (ImmediateFunc (pat, anf_body))
   in
   helper e expr_with_hole
 ;;
