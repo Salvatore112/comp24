@@ -39,14 +39,14 @@ let rec anf_of_exp e expr_with_hole =
       in
       ANFMatch (pat, convert_cases cases [])
     | ETuple exps ->
-      let rec convert_tuple_elements exps acc =
-        match exps with
-        | h :: tl ->
-          let anf_exp = anf_of_exp h (fun immexpr -> expr_with_hole immexpr) in
-          convert_tuple_elements tl (anf_exp :: acc)
+      (* Convert each expression in the tuple individually, then gather them into a tuple *)
+      let rec create_tuple_list acc = function
         | [] -> List.rev acc
+        | h :: tl ->
+          let anf_body = anf_of_exp h (fun imm -> ANFCEexpr (CImmExpr imm)) in
+          create_tuple_list (anf_body :: acc) tl
       in
-      expr_with_hole (ImmediateTuple (convert_tuple_elements exps []))
+      expr_with_hole (ImmediateTuple (create_tuple_list [] exps))
     | EApplication (left, right) ->
       helper left (fun left_immediate ->
         helper right (fun right_immediate ->
