@@ -1,20 +1,50 @@
-.PHONY: all test
-all:
-	dune build
+.PHONY: 
+.SUFFIXES: .fmt .pdf
+ENGINE ?= xelatex
 
-test:
-	dune test
+all: #010intro.pdf 020closures.pdf 030cfg.pdf
 
-TEST_COV_D = /tmp/cov
-COVERAGE_OPTS = --coverage-path $(TEST_COV_D) --expect bin/
+define ADDMISC
+$1.pdf: ../misc/$2.pdf
+../misc/$2.pdf:
+	$$(MAKE) -C ../misc $2.pdf	
+endef
 
-.PHONY: test_coverage coverage
-test_coverage: coverage
-coverage:
-	$(RM) -r $(TEST_COV_D)
-	mkdir -p $(TEST_COV_D)
-	BISECT_FILE=$(TEST_COV_D)/language dune runtest --no-print-directory \
-		--instrument-with bisect_ppx --force
-	bisect-ppx-report html $(COVERAGE_OPTS)
-	bisect-ppx-report summary $(COVERAGE_OPTS)
-	@echo "Use 'xdg-open _coverage/index.html' to see coverage report"
+$(eval $(call ADDMISC,demo,cfg1))
+
+OTHER_TEX=../preamble.tex
+
+define WRAP
+INPUT_$(1)=$(wildcard $(1)*.tex)
+all: $$(INPUT_$(1):%.tex=%.pdf)
+
+ifeq ("$$(ENGINE)","xelatex")
+$$(INPUT_$(1):%.tex=%.pdf): $$(INPUT_$(1)) $$(OTHER_TEX)
+	/usr/bin/time -f "%U" latexmk -$$(ENGINE) -synctex=1 -interaction=nonstopmode -file-line-error -shell-escape $$<
+	@echo FINISHED $$(ENGINE) -fmt=$$(<:.tex=.fmt) $$<
+else
+$$(INPUT_$(1):%.tex=%.fmt): $$(INPUT_$(1)) $$(OTHER_TEX)
+	$$(ENGINE) -synctex=1 -ini -jobname="$$(@:.fmt=)" "&$$(ENGINE)" mylatexformat.ltx $$<
+$$(INPUT_$(1):%.tex=%.pdf): $$(INPUT_$(1))  $$(INPUT_$(1):%.tex=%.fmt) 
+	/usr/bin/time -f "%U" $$(ENGINE) -synctex=1 -fmt=$$(<:.tex=.fmt) $$<
+endif
+endef
+
+LECTURES  = 
+LECTURES += demo
+
+$(foreach i,$(LECTURES),$(eval $(call WRAP,$(i)) ) )
+
+celan: clean
+clean:
+	@$(RM) -r _minted*
+	@$(RM) *.aux *.bbl *.blg *.dvi *.log *.nav *.out *.snm *.toc *.vrb *.synctex.gz *.xdv *.run.xml *fls *.fdb_latexmk *.bcf
+	$(RM) *.pdf *.fmt
+
+DEBS += texlive-font-utils texlive-fonts-extra
+DEBS += texlive-plain-generic
+DEBS += lmodern # nicer fonts
+
+debs:
+	sudo apt install -y $(DEBS)
+
