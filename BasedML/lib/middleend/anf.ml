@@ -93,3 +93,124 @@ let anf_of_declarations decls = List.map anf_of_declaration decls
 let test_prog decls =
   Format.print_string (show_anf_declarations (anf_of_declarations decls))
 ;;
+
+let rec convert_aexpr (ae : aexpr) : expr =
+  match ae with
+  | ANFCEexpr cexpr -> convert_cexpr cexpr
+  | ANFLetIn (rec_flag, pattern, cexpr, body) ->
+    let rhs = convert_cexpr cexpr in
+    let body' = convert_aexpr body in
+    ELetIn (rec_flag, pattern, rhs, body')
+  | ANFIfThenElse (cond, then_expr, else_expr) ->
+    EIfThenElse (convert_aexpr cond, convert_aexpr then_expr, convert_aexpr else_expr)
+  | ANFTuple exprs -> ETuple (List.map convert_aexpr exprs)
+  | ANFMatch (pat, branches) ->
+    let branches' = List.map (fun (p, e) -> p, convert_aexpr e) branches in
+    EMatch (pat, branches')
+  | ANFConstraint (e, t) -> EConstraint (convert_aexpr e, t)
+
+and convert_cexpr (ce : cexpr) : expr =
+  match ce with
+  | CImmExpr imm -> convert_immexpr imm
+  | CApp (imm1, imm2) -> EApplication (convert_immexpr imm1, convert_immexpr imm2)
+
+and convert_immexpr (imm : immexpr) : expr =
+  match imm with
+  | ImmediateInt i -> EConstant (CInt i)
+  | ImmediateBool b -> EConstant (CBool b)
+  | ImmediateUnit -> EConstant CUnit
+  | ImmediateNil -> EConstant CNil
+  | ImmediateIdentifier id -> EIdentifier id
+  | ImmediateTuple aexprs -> ETuple (List.map convert_aexpr aexprs)
+  | ImmediateFunc (pattern, body) -> EFunction (pattern, convert_aexpr body)
+;;
+
+let rec convert_let_declaration (let_decl : anf_let_declaration) : let_declaration =
+  match let_decl with
+  | ANFSingleLet (rec_flag, anf_single_let) ->
+    DSingleLet (rec_flag, convert_let_single anf_single_let)
+  | ANFMutualRecDecl (rec_flag, anf_single_lets) ->
+    DMutualRecDecl (rec_flag, List.map convert_let_single anf_single_lets)
+
+and convert_let_single (anf_single_let : anf_single_let) : single_let =
+  match anf_single_let with
+  | ANFDec (pattern, aexpr) -> DLet (pattern, convert_aexpr aexpr)
+;;
+
+(* Convert the list of ANF declarations to regular declarations *)
+let convert_declarations (anf_decls : anf_declarations) : declarations =
+  List.map convert_let_declaration anf_decls
+;;
+
+let test_ast decls = Format.print_string (show_declarations (convert_declarations decls))
+
+let%expect_test _ =
+  test_ast
+    [ ANFSingleLet
+        ( NotRec
+        , ANFDec
+            ( PIdentifier "x"
+            , ANFLetIn
+                ( NotRec
+                , PIdentifier "$ANF_VAR$1"
+                , CApp (ImmediateIdentifier "( + )", ImmediateInt 53)
+                , ANFLetIn
+                    ( NotRec
+                    , PIdentifier "$ANF_VAR$2"
+                    , CApp (ImmediateIdentifier "$ANF_VAR$1", ImmediateInt 27)
+                    , ANFLetIn
+                        ( NotRec
+                        , PIdentifier "$ANF_VAR$3"
+                        , CApp
+                            ( ImmediateTuple
+                                [ ANFCEexpr (CImmExpr (ImmediateInt 1))
+                                ; ANFLetIn
+                                    ( NotRec
+                                    , PIdentifier "$ANF_VAR$1"
+                                    , CApp (ImmediateIdentifier "( + )", ImmediateInt 2)
+                                    , ANFLetIn
+                                        ( NotRec
+                                        , PIdentifier "$ANF_VAR$2"
+                                        , CApp
+                                            ( ImmediateIdentifier "$ANF_VAR$1"
+                                            , ImmediateInt 6 )
+                                        , ANFCEexpr
+                                            (CImmExpr (ImmediateIdentifier "$ANF_VAR$2"))
+                                        ) )
+                                ; ANFCEexpr (CImmExpr (ImmediateInt 3))
+                                ]
+                            , ImmediateIdentifier "$ANF_VAR$2" )
+                        , ANFCEexpr (CImmExpr (ImmediateIdentifier "$ANF_VAR$3")) ) ) ) )
+        )
+    ];
+  [%expect
+    {|
+    [(DSingleLet (NotRec,
+        (DLet ((PIdentifier "x"),
+           (ELetIn (NotRec, (PIdentifier "$ANF_VAR$1"),
+              (EApplication ((EIdentifier "( + )"), (EConstant (CInt 53)))),
+              (ELetIn (NotRec, (PIdentifier "$ANF_VAR$2"),
+                 (EApplication ((EIdentifier "$ANF_VAR$1"), (EConstant (CInt 27))
+                    )),
+                 (ELetIn (NotRec, (PIdentifier "$ANF_VAR$3"),
+                    (EApplication (
+                       (ETuple
+                          [(EConstant (CInt 1));
+                            (ELetIn (NotRec, (PIdentifier "$ANF_VAR$1"),
+                               (EApplication ((EIdentifier "( + )"),
+                                  (EConstant (CInt 2)))),
+                               (ELetIn (NotRec, (PIdentifier "$ANF_VAR$2"),
+                                  (EApplication ((EIdentifier "$ANF_VAR$1"),
+                                     (EConstant (CInt 6)))),
+                                  (EIdentifier "$ANF_VAR$2")))
+                               ));
+                            (EConstant (CInt 3))]),
+                       (EIdentifier "$ANF_VAR$2"))),
+                    (EIdentifier "$ANF_VAR$3")))
+                 ))
+              ))
+           ))
+        ))
+      ]
+    |}]
+;;
