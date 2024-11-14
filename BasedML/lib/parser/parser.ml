@@ -20,7 +20,8 @@ let is_keyword = function
   | "true"
   | "then"
   | "and"
-  | "in" -> true
+  | "in"
+  | "_" -> true
   | _ -> false
 ;;
 
