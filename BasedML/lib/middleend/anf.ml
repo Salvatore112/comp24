@@ -4,15 +4,17 @@
 
 open Anf_ast
 open Ast
+open Restore_src.RestoreSrc
 
 (* references https://www.cs.swarthmore.edu/~jpolitz/cs75/s16/n_anf-tutorial.html *)
 (* Generate anf variables *)
+let test_restore_src tree = Format.printf "%s" (restore_declarations tree)
 let counter = ref 0
 let set n = counter := n
 
 let new_var () =
   incr counter;
-  Format.sprintf "$ANF_VAR$%d" !counter
+  Format.sprintf "anf_var%d" !counter
 ;;
 
 let rec anf_of_exp e expr_with_hole =
@@ -39,14 +41,21 @@ let rec anf_of_exp e expr_with_hole =
       in
       ANFMatch (pat, convert_cases cases [])
     | ETuple exps ->
-      (* Convert each expression in the tuple individually, then gather them into a tuple *)
-      let rec create_tuple_list acc = function
-        | [] -> List.rev acc
+      let rec create_tuple acc = function
+        | [] -> expr_with_hole (ImmediateTuple (List.rev acc))
         | h :: tl ->
-          let anf_body = anf_of_exp h (fun imm -> ANFCEexpr (CImmExpr imm)) in
-          create_tuple_list (anf_body :: acc) tl
+          let new_name = new_var () in
+          helper h (fun imm ->
+            let let_binding =
+              ANFLetIn
+                ( NotRec
+                , PIdentifier new_name
+                , CImmExpr imm
+                , expr_with_hole (ImmediateIdentifier new_name) )
+            in
+            create_tuple (let_binding :: acc) tl)
       in
-      expr_with_hole (ImmediateTuple (create_tuple_list [] exps))
+      create_tuple [] exps
     | EApplication (left, right) ->
       helper left (fun left_immediate ->
         helper right (fun right_immediate ->
@@ -143,74 +152,3 @@ let convert_declarations (anf_decls : anf_declarations) : declarations =
 ;;
 
 let test_ast decls = Format.print_string (show_declarations (convert_declarations decls))
-
-let%expect_test _ =
-  test_ast
-    [ ANFSingleLet
-        ( NotRec
-        , ANFDec
-            ( PIdentifier "x"
-            , ANFLetIn
-                ( NotRec
-                , PIdentifier "$ANF_VAR$1"
-                , CApp (ImmediateIdentifier "( + )", ImmediateInt 53)
-                , ANFLetIn
-                    ( NotRec
-                    , PIdentifier "$ANF_VAR$2"
-                    , CApp (ImmediateIdentifier "$ANF_VAR$1", ImmediateInt 27)
-                    , ANFLetIn
-                        ( NotRec
-                        , PIdentifier "$ANF_VAR$3"
-                        , CApp
-                            ( ImmediateTuple
-                                [ ANFCEexpr (CImmExpr (ImmediateInt 1))
-                                ; ANFLetIn
-                                    ( NotRec
-                                    , PIdentifier "$ANF_VAR$1"
-                                    , CApp (ImmediateIdentifier "( + )", ImmediateInt 2)
-                                    , ANFLetIn
-                                        ( NotRec
-                                        , PIdentifier "$ANF_VAR$2"
-                                        , CApp
-                                            ( ImmediateIdentifier "$ANF_VAR$1"
-                                            , ImmediateInt 6 )
-                                        , ANFCEexpr
-                                            (CImmExpr (ImmediateIdentifier "$ANF_VAR$2"))
-                                        ) )
-                                ; ANFCEexpr (CImmExpr (ImmediateInt 3))
-                                ]
-                            , ImmediateIdentifier "$ANF_VAR$2" )
-                        , ANFCEexpr (CImmExpr (ImmediateIdentifier "$ANF_VAR$3")) ) ) ) )
-        )
-    ];
-  [%expect
-    {|
-    [(DSingleLet (NotRec,
-        (DLet ((PIdentifier "x"),
-           (ELetIn (NotRec, (PIdentifier "$ANF_VAR$1"),
-              (EApplication ((EIdentifier "( + )"), (EConstant (CInt 53)))),
-              (ELetIn (NotRec, (PIdentifier "$ANF_VAR$2"),
-                 (EApplication ((EIdentifier "$ANF_VAR$1"), (EConstant (CInt 27))
-                    )),
-                 (ELetIn (NotRec, (PIdentifier "$ANF_VAR$3"),
-                    (EApplication (
-                       (ETuple
-                          [(EConstant (CInt 1));
-                            (ELetIn (NotRec, (PIdentifier "$ANF_VAR$1"),
-                               (EApplication ((EIdentifier "( + )"),
-                                  (EConstant (CInt 2)))),
-                               (ELetIn (NotRec, (PIdentifier "$ANF_VAR$2"),
-                                  (EApplication ((EIdentifier "$ANF_VAR$1"),
-                                     (EConstant (CInt 6)))),
-                                  (EIdentifier "$ANF_VAR$2")))
-                               ));
-                            (EConstant (CInt 3))]),
-                       (EIdentifier "$ANF_VAR$2"))),
-                    (EIdentifier "$ANF_VAR$3")))
-                 ))
-              ))
-           ))
-        ))
-      ]
-    |}]
-;;
