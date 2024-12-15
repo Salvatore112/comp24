@@ -88,14 +88,17 @@ let p_ident_string p_valid_fst_char =
   | _ -> fail "Identifier parsing failed: first character must start with [a-z]"
 ;;
 
-let p_infix_ident =
+let p_infix constr =
   let* some_str =
     between_parens (skip_whitespace *> take_while1 is_inf_op_symb <* skip_whitespace)
   in
   if some_str |> is_op_symb
-  then return (PIdentifier ("( " ^ some_str ^ " )"))
+  then return (constr ("( " ^ some_str ^ " )"))
   else fail "Parsed string wasn't an supported operator"
 ;;
+
+let p_infix_ident_pattern = p_infix (fun x -> PIdentifier x)
+let p_infix_ident_exp = p_infix (fun x -> EIdentifier x)
 
 (* Type parsers *)
 
@@ -288,7 +291,7 @@ let p_pattern =
     let atomic_pat =
       p_ident_pattern
       <|> p_const_pattern
-      <|> p_infix_ident
+      <|> p_infix_ident_pattern
       <|> between_parens p_pattern
       <|> p_list_pattern p_pattern
       <|> p_pattern_with_type p_pattern
@@ -390,6 +393,7 @@ let p_exp =
     let atomic_exp =
       p_const_expr
       <|> p_ident
+      <|> p_infix_ident_exp
       <|> p_function p_exp
       <|> between_parens p_exp
       <|> p_list_exp p_exp
