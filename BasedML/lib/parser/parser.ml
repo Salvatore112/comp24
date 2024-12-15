@@ -16,10 +16,11 @@ let is_keyword = function
   | "rec"
   | "match"
   | "fun"
-  | "then"
   | "false"
   | "true"
+  | "then"
   | "and"
+  | "_"
   | "in" -> true
   | _ -> false
 ;;
@@ -101,9 +102,10 @@ let p_infix_ident =
 let p_basic_type : type_name t =
   Angstrom.string "int" *> return TInt
   <|> Angstrom.string "bool" *> return TBool
+  <|> Angstrom.string "unit" *> return TUnit
   <|> char '\''
       *> let* typeNameChar = p_ident_string is_valid_fst_char_poly_type in
-         return (TPoly ("'" ^ typeNameChar))
+         return (TPoly typeNameChar)
 ;;
 
 let p_tuple_type p_type =
@@ -151,13 +153,19 @@ let p_cbool =
   return (CBool (bool_val |> bool_of_string))
 ;;
 
+let p_cunit =
+  Angstrom.char '(' *> skip_whitespace *> return CUnit
+  <* skip_whitespace
+  <* Angstrom.char ')'
+;;
+
 let p_const_expr =
-  let* const = p_cint <|> p_cbool in
+  let* const = p_cint <|> p_cbool <|> p_cunit in
   return (EConstant const)
 ;;
 
 let p_const_pattern =
-  let* const = p_cint <|> p_cbool in
+  let* const = p_cint <|> p_cbool <|> p_cunit in
   return (PConstant const)
 ;;
 
@@ -212,7 +220,15 @@ let p_enil =
 ;;
 
 let p_list_exp p_exp = p_list_not_empty_exp p_exp <|> p_enil
-let p_wild_card_pattern = skip_whitespace *> Angstrom.string "_" *> return PWildCard
+
+let p_wild_card_pattern =
+  skip_whitespace
+  *> Angstrom.string "_"
+  *> let* next = peek_char in
+     match next with
+     | Some c when is_identifier_char c -> fail "a"
+     | _ -> return PWildCard
+;;
 
 (* Tuple parsers *)
 
@@ -229,14 +245,11 @@ let p_unit constr =
   *> Angstrom.string "("
   *> skip_whitespace
   *> Angstrom.string ")"
-  *> return (constr [])
+  *> return constr
 ;;
 
-let p_tuple_expr p_exp = p_tuple p_exp (fun x -> ETuple x) <|> p_unit (fun x -> ETuple x)
-
-let p_tuple_pattern p_exp =
-  p_tuple p_exp (fun x -> PTuple x) <|> p_unit (fun x -> PTuple x)
-;;
+let p_tuple_expr p_exp = p_tuple p_exp (fun x -> ETuple x) <|> p_unit (EConstant CUnit)
+let p_tuple_pattern p_exp = p_tuple p_exp (fun x -> PTuple x) <|> p_unit (PConstant CUnit)
 
 let rec pat_cons_list_builder (ls : pattern list) =
   match ls with
@@ -258,7 +271,7 @@ let cons_delim_pattern =
 let p_list_pattern p_pattern = p_list_not_empty_pattern p_pattern <|> p_pnil
 
 (* final pattern parsers*)
-let p_cons_pattern p_pattern = chainl1 p_pattern cons_delim_pattern
+let p_cons_pattern p_pattern = chainr1 p_pattern cons_delim_pattern
 
 let p_pattern_with_type p_pat =
   let* pattern = skip_whitespace *> Angstrom.string "(" *> p_pat in
@@ -279,11 +292,11 @@ let p_pattern =
       <|> between_parens p_pattern
       <|> p_list_pattern p_pattern
       <|> p_pattern_with_type p_pattern
+      <|> p_tuple_pattern p_pattern
     in
     let w_card_pat = p_wild_card_pattern <|> atomic_pat in
     let cons_pat = p_cons_pattern w_card_pat <|> w_card_pat in
-    let tuple_pat = p_tuple_pattern cons_pat <|> cons_pat in
-    tuple_pat)
+    cons_pat)
 ;;
 
 (* Binary operations parsers & delimiter for chains*)
@@ -405,7 +418,9 @@ let p_let_decl p_exp =
        skip_whitespace *> Angstrom.string "rec " *> return Rec <|> return NotRec
      in
      let* pattern = skip_whitespace *> p_pattern in
-     let* expr = skip_whitespace *> Angstrom.string "=" *> p_exp in
+     let* expr =
+       skip_whitespace *> Angstrom.string "=" *> p_exp <* option "" (Angstrom.string ";;")
+     in
      return @@ DSingleLet (flag, DLet (pattern, expr))
 ;;
 
@@ -416,7 +431,9 @@ let p_mutually_rec_decl =
     *> skip_whitespace
     *>
     let* pattern = skip_whitespace *> p_pattern in
-    let* expr = skip_whitespace *> Angstrom.string "=" *> p_exp in
+    let* expr =
+      skip_whitespace *> Angstrom.string "=" *> p_exp <* option "" (Angstrom.string ";;")
+    in
     return (DLet (pattern, expr))
   in
   let* fst_dcl = p_let_decl p_exp in

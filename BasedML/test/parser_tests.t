@@ -1,8 +1,9 @@
   $ dune exec parser_demo << EOF
-  > let x = 5
+  > let    true = 3;;
   > EOF
-  [(DSingleLet (NotRec, (DLet ((PIdentifier "x"), (EConstant (CInt 5))))))]
-
+  [(DSingleLet (NotRec, (DLet ((PConstant (CBool true)), (EConstant (CInt 3))))
+      ))
+    ]
   $ dune exec parser_demo << EOF
   > let x = true;;
   > let y = false
@@ -289,9 +290,7 @@
   > let (x : int -> bool -> 'loooong) = some_func
   > EOF
   [(DSingleLet (NotRec,
-      (DLet (
-         (PConstraint ((PIdentifier "x"),
-            (TFunction (TInt, (TFunction (TBool, (TPoly "'loooong"))))))),
+      (DLet ((PConstraint ((PIdentifier "x"), (int -> (bool -> 'loooong)))),
          (EIdentifier "some_func")))
       ))
     ]
@@ -302,11 +301,7 @@
   [(DSingleLet (NotRec,
       (DLet (
          (PConstraint ((PIdentifier "x"),
-            (TList
-               (TList
-                  (TFunction ((TTuple [(TPoly "'b"); TInt]),
-                     (TTuple [TInt; (TPoly "'pa")])))))
-            )),
+            (((('b * int) -> (int * 'pa)) list) list))),
          (EConstraint (
             (EApplication (
                (EApplication ((EIdentifier "( :: )"),
@@ -320,11 +315,7 @@
                      ))
                   )),
                (EConstant CNil))),
-            (TList
-               (TList
-                  (TFunction ((TTuple [(TPoly "'b"); TInt]),
-                     (TTuple [TInt; (TPoly "'a")])))))
-            ))
+            (((('b * int) -> (int * 'a)) list) list)))
          ))
       ))
     ]
@@ -333,7 +324,7 @@
   > let ((x : int) : int) = 5
   > EOF
   [(DSingleLet (NotRec,
-      (DLet ((PConstraint ((PConstraint ((PIdentifier "x"), TInt)), TInt)),
+      (DLet ((PConstraint ((PConstraint ((PIdentifier "x"), int)), int)),
          (EConstant (CInt 5))))
       ))
     ]
@@ -341,7 +332,7 @@
   $ dune exec parser_demo << EOF
   > let () = ()
   > EOF
-  [(DSingleLet (NotRec, (DLet ((PTuple []), (ETuple [])))))]
+  [(DSingleLet (NotRec, (DLet ((PConstant CUnit), (EConstant CUnit)))))]
 
   $ dune exec parser_demo << EOF
   > let recfib = fun n -> if n=1 then 1 else fib (n-1)
