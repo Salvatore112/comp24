@@ -109,8 +109,8 @@ let rec collect_names_from_patterns = function
       ~init:((module String) |> Set.empty)
 ;;
 
-let infix_ops_set =
+let stdlib_names =
   Set.of_list
     (module String)
-    [ "( + )"; "( :: )"; "( * )"; "( - )"; "( == )"; "( = )"; "( / )" ]
+    [ "( + )"; "( :: )"; "( * )"; "( - )"; "( == )"; "( = )"; "( / )"; "print_int" ]
 ;;
