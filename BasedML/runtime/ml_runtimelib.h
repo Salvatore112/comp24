@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,11 +45,6 @@ typedef struct {
     int64_t values[];
 } box_t;
 #pragma pack(pop)
-
-typedef struct {
-    int64_t val;
-    struct list_t* next;
-} list_t;
 
 #define CONVERT_INT_ML_TO_NATIVE(x) ((x) >> 1)
 #define CONVERT_INT_NATIVE_TO_ML(x) (((x) << 1) + 1)
