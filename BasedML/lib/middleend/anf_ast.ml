@@ -15,7 +15,7 @@ type immexpr =
 type cexpr =
   | CApplication of cexpr * cexpr
   | CIfThenElse of immexpr * aexpr * aexpr
-  | CMatch of immexpr * (pattern * aexpr) list
+  | CMatch of pattern * (pattern * aexpr) list
   | CImmExpr of immexpr
   | CConstraint of immexpr * type_name
 

@@ -17,7 +17,7 @@
 
 (package
  (name KreML)
- (synopsis "A CursedML compiler")
+ (synopsis "A KreML compiler")
  (version 0.1)
  (depends
   base

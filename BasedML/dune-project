@@ -21,7 +21,6 @@
   dune
   bisect_ppx
   qcheck
-  ego
   (llvm
    (= "16.0.6+nnp"))))
 

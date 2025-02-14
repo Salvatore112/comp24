@@ -44,10 +44,7 @@ jobs:
           echo "${{ env.latest }}"
 
       - name: Installing dependencies for ${{ env.latest }}
-        run: |
-          opam update
-          opam install ./${{ env.latest }} --depext-only --with-test --with-doc
-          opam install ./${{ env.latest }} --deps-only --with-test --with-doc
+        run: cd ${{ env.latest }} && opam install . --deps-only --with-test --with-doc --yes
 
       - if: false
         name: Checking ocamlformat

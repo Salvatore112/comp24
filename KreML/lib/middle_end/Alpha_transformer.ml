@@ -1,4 +1,4 @@
-(** Copyright 2024-2025, CursedML Compiler Commutnity *)
+(** Copyright 2024-2025, KreML Compiler Commutnity *)
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
@@ -13,16 +13,13 @@ let default =
   List.fold_left
     (fun map f -> Base.Map.set map ~key:f ~data:f)
     empty
-    (Ast.binary_ops @ Cstdlib.stdlib_funs @ Runtime.runtime_funs)
+    (Ast.binary_ops @ Runtime.stdlib_funs)
 ;;
 
 open Utils.Counter
 
 let rec transform_pattern id_gen ctx = function
-  | Pat_const Const_unit | Pat_wildcard ->
-    let* fresh = id_gen "unused" in
-    (Pat_var fresh, ctx) |> return
-  | Pat_const _ as p -> return (p, ctx)
+  | (Pat_const _ | Pat_wildcard) as p -> return (p, ctx)
   | Pat_var prev_id ->
     let* n = id_gen prev_id in
     (Pat_var n, Base.Map.set ctx ~key:prev_id ~data:n) |> return
@@ -51,11 +48,7 @@ let rec transform_expr ctx e =
   match e with
   | Expr_const _ as e -> return e
   | Expr_var id ->
-    let unique =
-      match Base.Map.find ctx id with
-      | None -> internalfail @@ Format.sprintf "was not found %s" id
-      | Some i -> i
-    in
+    let unique = Base.Map.find_exn ctx id in
     (* program is type checked *)
     Expr_var unique |> return
   | Expr_cons (x, xs) ->
@@ -117,38 +110,27 @@ let rec transform_expr ctx e =
 ;;
 
 let transform s =
-  let renew_if_need ctx name =
-    if Base.Map.mem ctx name then fresh_name name else return name
-  in
-  let lookup ctx name = Base.Map.find_exn ctx name |> return in
+  let id_gen = return in
   let default_ctx = default in
   let transform_struct_item ctx (Str_value (rf, bindings)) =
-    let* refined_ctx =
-      match rf with
-      | Recursive ->
-        List.fold_left
-          (fun ctx (p, _) ->
-            let* ctx = ctx in
-            let* _, ctx = transform_pattern (renew_if_need ctx) ctx p in
-            return ctx)
-          ctx
-          bindings
-      | NonRecursive -> ctx
-    in
-    let id_gen ctx =
-      match rf with
-      | Recursive -> lookup ctx (* all bindings are in [refined_context] *)
-      | NonRecursive -> renew_if_need ctx
+    let* ctx =
+      List.fold_left
+        (fun ctx (p, _) ->
+          let* ctx = ctx in
+          let* _, ctx = transform_pattern id_gen ctx p in
+          return ctx)
+        ctx
+        bindings
     in
     let* bindings', ctx =
-      List.fold_left
-        (fun acc (p, e) ->
+      List.fold_right
+        (fun (p, e) acc ->
           let* acc, ctx = acc in
+          let* _, ctx = transform_pattern id_gen ctx p in
           let* e' = transform_expr ctx e in
-          let* p', ctx = transform_pattern (id_gen ctx) ctx p in
-          (acc @ [ p', e' ], ctx) |> return)
-        (return ([], refined_ctx))
+          ((p, e') :: acc, ctx) |> return)
         bindings
+        (return ([], ctx))
     in
     (Str_value (rf, bindings'), ctx) |> return
   in

@@ -1,9 +1,9 @@
-(** Copyright 2024-2025, CursedML Compiler Commutnity *)
+(** Copyright 2024-2025, KreML Compiler Commutnity *)
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
-open Cursedml_lib.Inferencer
-open Cursedml_lib
+open Kreml_lib.Inferencer
+open Kreml_lib
 
 let () =
   let open Stdlib.Format in
