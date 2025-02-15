@@ -165,9 +165,19 @@ let restore_anf_decl fmt = function
             fmt
             patterns;
           Format.fprintf fmt " = %a " pp_aexpr exp
-        | _ -> failwith "unimplemted")
+        | ANotFunLet (pat, body) ->
+          fprintf fmt " %a = %a" frestore_pattern pat pp_aexpr body)
       bindings
-  | _ -> failwith "unimplemted"
+  | ADSingleLet (rec_flag, ANotFunLet (pat, body)) ->
+    Format.fprintf
+      fmt
+      "let %a %a = %a;;"
+      frestore_rec_flag
+      rec_flag
+      frestore_pattern
+      pat
+      pp_aexpr
+      body
 ;;
 
 let restore_program formatter declarations =

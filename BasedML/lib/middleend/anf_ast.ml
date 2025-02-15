@@ -25,7 +25,7 @@ and aexpr =
 
 type single_anf_binding =
   | AFunLet of string * pattern list * aexpr
-  | NotFunLet of pattern * aexpr
+  | ANotFunLet of pattern * aexpr
 
 type anf_decl =
   | ADSingleLet of rec_flag * single_anf_binding

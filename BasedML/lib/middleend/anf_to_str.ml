@@ -128,13 +128,19 @@ let anf_decl_to_string = function
               id
               (patterns |> List.map pattern_to_string |> String.concat " ")
               (aexpr_to_string exp)
-          | _ -> failwith "unimplemted"
+          | ANotFunLet (pat, exp) ->
+            Printf.sprintf "%s = %s" (pattern_to_string pat) (aexpr_to_string exp)
         in
         if i <> 0 then Printf.sprintf " and %s" binding_str else binding_str)
       |> String.concat ""
     in
     Printf.sprintf "let %s %s" (rec_flag_to_string rec_flag) bindings_str
-  | _ -> failwith "unimplemted"
+  | ADSingleLet (rec_flag, ANotFunLet (pat, body)) ->
+    Printf.sprintf
+      "let %s %s = %s;;"
+      (rec_flag_to_string rec_flag)
+      (pattern_to_string pat)
+      (aexpr_to_string body)
 ;;
 
 let program_to_string declarations =
