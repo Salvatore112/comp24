@@ -109,11 +109,11 @@ let rec_flag_to_string = function
 ;;
 
 let anf_decl_to_string = function
-  | ADSingleLet (rec_flag, ALet (pat, patterns, body)) ->
+  | ADSingleLet (rec_flag, AFunLet (id, patterns, body)) ->
     Printf.sprintf
       "let %s %s %s = %s;;"
       (rec_flag_to_string rec_flag)
-      (pattern_to_string pat)
+      id
       (patterns |> List.map pattern_to_string |> String.concat " ")
       (aexpr_to_string body)
   | ADMutualRecDecl (rec_flag, bindings) ->
@@ -122,17 +122,19 @@ let anf_decl_to_string = function
       |> List.mapi (fun i binding ->
         let binding_str =
           match binding with
-          | ALet (pat, patterns, exp) ->
+          | AFunLet (id, patterns, exp) ->
             Printf.sprintf
               "%s %s = %s"
-              (pattern_to_string pat)
+              id
               (patterns |> List.map pattern_to_string |> String.concat " ")
               (aexpr_to_string exp)
+          | _ -> failwith "unimplemted"
         in
         if i <> 0 then Printf.sprintf " and %s" binding_str else binding_str)
       |> String.concat ""
     in
     Printf.sprintf "let %s %s" (rec_flag_to_string rec_flag) bindings_str
+  | _ -> failwith "unimplemted"
 ;;
 
 let program_to_string declarations =

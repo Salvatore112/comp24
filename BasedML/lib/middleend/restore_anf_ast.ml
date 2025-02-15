@@ -138,14 +138,13 @@ let frestore_rec_flag ppf = function
 ;;
 
 let restore_anf_decl fmt = function
-  | ADSingleLet (rec_flag, ALet (pat, patterns, body)) ->
+  | ADSingleLet (rec_flag, AFunLet (id, patterns, body)) ->
     Format.fprintf
       fmt
-      "let %a %a %a = %a;;"
+      "let %a %s %a = %a;;"
       frestore_rec_flag
       rec_flag
-      frestore_pattern
-      pat
+      id
       (fun fmt -> List.iter (fun pat -> Format.fprintf fmt "%a " frestore_pattern pat))
       patterns
       pp_aexpr
@@ -158,15 +157,17 @@ let restore_anf_decl fmt = function
       (fun i binding ->
         if i != 0 then Format.fprintf fmt " and ";
         match binding with
-        | ALet (pat, patterns, exp) ->
+        | AFunLet (pat, patterns, exp) ->
           Format.fprintf fmt " ";
-          frestore_pattern fmt pat;
+          Format.fprintf fmt "%s" pat;
           (fun fmt ->
             List.iter (fun pat -> Format.fprintf fmt " %a " frestore_pattern pat))
             fmt
             patterns;
-          Format.fprintf fmt " = %a " pp_aexpr exp)
+          Format.fprintf fmt " = %a " pp_aexpr exp
+        | _ -> failwith "unimplemted")
       bindings
+  | _ -> failwith "unimplemted"
 ;;
 
 let restore_program formatter declarations =

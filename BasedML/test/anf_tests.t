@@ -431,15 +431,16 @@
   > let funct a = a + 500
   > let () = print_int (g 5) 
   > EOF
-  let  funct_0 a_0  = let anf_app_0 = plus_mlint a_0 5 in
-   anf_app_0;;
-  let  g_0 a_1  = let anf_app_0 = funct_0 5 in
-   anf_app_0;;
-  let  funct_1 a_2  = let anf_app_0 = plus_mlint a_2 500 in
-   anf_app_0;;
-  let  ()  = let anf_app_0 = g_0 5 in
-   let anf_app_1 = print_int anf_app_0 in
-   anf_app_1;;
+  Fatal error: exception Failure("unimplented")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Middleend__Anf.anf_decl.(fun) in file "lib/middleend/anf.ml", line 169, characters 19-55
+  Called from Middleend__Anf.transform.(fun) in file "lib/middleend/anf.ml", line 194, characters 31-50
+  Called from Stdlib__List.map in file "list.ml", line 92, characters 20-23
+  Called from Stdlib__List.map in file "list.ml", line 92, characters 32-39
+  Called from Stdlib__List.map in file "list.ml", line 92, characters 32-39
+  Called from Stdlib__List.map in file "list.ml", line 92, characters 32-39
+  Called from Dune__exe__Anf_demo in file "test/anf_demo.ml", line 27, characters 7-139
+  [2]
 
   $ dune exec ./anf_demo.exe << EOF
   > let rec even n =

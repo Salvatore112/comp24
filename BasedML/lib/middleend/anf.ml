@@ -156,12 +156,13 @@ let anf_decl env =
     Base.Set.union acc (Lambda_lifting.collect_bindings_from_pat pat)
   in
   let process_lllet = function
-    | LLLet (pat, args, e) ->
+    | LLLet (PIdentifier id, args, e) ->
       let* aexp =
         anf (List.fold_left collect_bindings env args) e (fun ie ->
           return (ACExpr (CImmExpr ie)))
       in
-      return (ALet (pat, args, aexp))
+      return (AFunLet (id, args, aexp))
+    | _ -> failwith "unimplented"
   in
   function
   | LLDSingleLet (rec_flag, LLLet (pat, args, e)) ->

@@ -23,7 +23,9 @@ and aexpr =
   | ALetIn of pattern * cexpr * aexpr
   | ACExpr of cexpr
 
-type single_anf_binding = ALet of pattern * pattern list * aexpr
+type single_anf_binding =
+  | AFunLet of string * pattern list * aexpr
+  | NotFunLet of pattern * aexpr
 
 type anf_decl =
   | ADSingleLet of rec_flag * single_anf_binding
