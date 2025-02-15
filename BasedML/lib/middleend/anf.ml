@@ -162,7 +162,18 @@ let anf_decl env =
           return (ACExpr (CImmExpr ie)))
       in
       return (AFunLet (id, args, aexp))
-    | _ -> failwith "unimplented"
+    | LLLet (pat, [], e) ->
+      let* aexp =
+        anf (List.fold_left collect_bindings env []) e (fun ie ->
+          return (ACExpr (CImmExpr ie)))
+      in
+      return (ANotFunLet (pat, aexp))
+    | LLLet (pat, _, e) ->
+      let* aexp =
+        anf (List.fold_left collect_bindings env []) e (fun ie ->
+          return (ACExpr (CImmExpr ie)))
+      in
+      return (ANotFunLet (pat, aexp))
   in
   function
   | LLDSingleLet (rec_flag, LLLet (pat, args, e)) ->
