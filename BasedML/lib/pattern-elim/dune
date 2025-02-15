@@ -1,0 +1,8 @@
+(library
+ (name pattern_elim)
+ (public_name BasedML.PatternElim)
+ (modules elimination pe_ast)
+ (libraries base common ast middleend)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test ppx_expect ppx_deriving.show)))
