@@ -4,3 +4,4 @@
 
 val anf_decl_to_string : Anf_ast.anf_decl -> string
 val program_to_string : Anf_ast.anf_decl list -> string
+val imm_to_string : Anf_ast.immexpr -> string
