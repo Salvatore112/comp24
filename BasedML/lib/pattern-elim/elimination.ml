@@ -277,3 +277,39 @@ let eliminate_from_single_anf_binding
     in
     return (res_let :: other_lets)
 ;;
+
+let eliminate_from_decl : Middleend.Anf_ast.anf_decl -> (state, pe_decl list) t = function
+  | ADSingleLet (rec_flag, sbinding) ->
+    let* bindings = eliminate_from_single_anf_binding sbinding in
+    return (List.map (fun bind -> ADSingleLet (rec_flag, bind)) bindings)
+  | ADMutualRecDecl (NotRec, sbind_lst) ->
+    let* pe_bind_lsts = map_list eliminate_from_single_anf_binding sbind_lst in
+    let bindings = List.concat pe_bind_lsts in
+    return (List.map (fun bind -> ADSingleLet (NotRec, bind)) bindings)
+  | ADMutualRecDecl (Rec, sbind_lst) ->
+    let convert_rec_anf_let_to_pe
+      : Middleend.Anf_ast.single_anf_binding -> (state, single_pe_binding) t
+      = function
+      | AFunLet (_, _, _) as fbind ->
+        let* pe_fbind = eliminate_from_single_anf_binding fbind in
+        (match pe_fbind with
+         | [ pe_fbind ] -> return pe_fbind
+         | _ -> fail "Imposible error: get not 1 element list after AFunLet elimination")
+      | ANotFunLet (PIdentifier _, _) as bind ->
+        let* pe_bind = eliminate_from_single_anf_binding bind in
+        (match pe_bind with
+         | [ pe_bind ] -> return pe_bind
+         | _ ->
+           fail
+             "Imposible error: get not 1 element list after ANotFunLet with Identifier \
+              Patter elimination")
+      | _ -> fail "Only variables are allowed as left-hand side of `let rec' "
+    in
+    let* pe_sbin_list = map_list convert_rec_anf_let_to_pe sbind_lst in
+    return [ ADMutualRecDecl pe_sbin_list ]
+;;
+
+let eliminate_from_prog anf_program =
+  let* decls_lsts = map_list eliminate_from_decl anf_program in
+  return (List.concat decls_lsts)
+;;
