@@ -10,7 +10,7 @@ type cexpr =
   | CImmExpr of Middleend.Anf_ast.immexpr
 
 and aexpr =
-  | ALetIn of string * cexpr * aexpr
+  | ALetIn of string * aexpr * aexpr
   | ACExpr of cexpr
 
 type single_pe_binding =
