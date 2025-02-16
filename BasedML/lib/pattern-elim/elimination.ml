@@ -155,19 +155,26 @@ let match_error =
     , CImmExpr Middleend.Anf_ast.ImmNil )
 ;;
 
-let if_match_comp combined_res_name on_fail_block =
+
+let if_match_block combined_res_name on_succ_block on_fail_block =
   let* match_complete = fresh_var "match_comp" in
   let combined_res_cexp = cexpr_from_name combined_res_name in
   let if_block =
     CIfThenElse
       ( Middleend.Anf_ast.ImmIdentifier match_complete
-      , ACExpr (get_field combined_res_cexp 1)
+      , on_succ_block
       , on_fail_block )
   in
   let get_block =
     ALetIn (match_complete, ACExpr (get_field combined_res_cexp 0), ACExpr if_block)
   in
   return get_block
+;;
+
+let if_match_fail_block combined_res_name on_fail_block =
+  if_match_block combined_res_name
+       (ACExpr (get_field combined_res_cexp 1))
+       on_fail_block 
 ;;
 
 let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = function
@@ -189,10 +196,10 @@ let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = fun
       let* cont_block = cont (Some combined_res) in
       let new_match = ALetIn (combined_res, pe_block, cont_block) in
       match prev_res with
-      | Some prev_res -> if_match_comp prev_res new_match
+      | Some prev_res -> if_match_fail_block prev_res new_match
       | None -> return new_match
     in
-    let fail_block match_res = if_match_comp match_res (ACExpr match_error) in
+    let fail_block match_res = if_match_fail_block match_res (ACExpr match_error) in
     let* final_block =
       List.fold_right
         (fun (pat, anf_aexp) cont prev_res ->
@@ -213,6 +220,6 @@ and eliminate_from_aexpr : Middleend.Anf_ast.aexpr -> (state, aexpr) t = functio
     let* match_res_block = result_match_aexpr pe_aexp in
     let* pe_block = eliminate_pattern_match pat pe_cexp match_res_block in
     let* cres = fresh_var "let_combined_res" in
-    let* if_block = if_match_comp cres (ACExpr match_error) in
+    let* if_block = if_match_fail_block cres (ACExpr match_error) in
     return (ALetIn (cres, pe_block, if_block))
 ;;

@@ -35,6 +35,5 @@ let stdlib_funs : std_fun list =
   ; "", "get_box_field", SystemFun, TFunction (TPoly "'_a", TFunction (TInt, TPoly "'_b"))
   ; "", "check_box_tag", SystemFun, TFunction (TPoly "'_a", TFunction (TInt, TBool))
   ; "", "match_failure", SystemFun, TFunction (TUnit, TPoly "'_a")
-
   ]
 ;;
