@@ -49,9 +49,11 @@ let fail_match =
     (Middleend.Anf_ast.ImmTuple [ Middleend.Anf_ast.ImmInt 0; Middleend.Anf_ast.ImmInt 0 ])
 ;;
 
+let pe_suffix = "_pe"
+
 let fresh_var name =
   let* cnt = read_counter in
-  return (Format.sprintf "%s_%d_pe" name cnt)
+  return (Format.sprintf "%s_%d%s" name cnt pe_suffix)
 ;;
 
 let cexpr_from_name name = CImmExpr (Middleend.Anf_ast.ImmIdentifier name)
@@ -155,26 +157,26 @@ let match_error =
     , CImmExpr Middleend.Anf_ast.ImmNil )
 ;;
 
-
 let if_match_block combined_res_name on_succ_block on_fail_block =
   let* match_complete = fresh_var "match_comp" in
-  let combined_res_cexp = cexpr_from_name combined_res_name in
   let if_block =
     CIfThenElse
-      ( Middleend.Anf_ast.ImmIdentifier match_complete
-      , on_succ_block
-      , on_fail_block )
+      (Middleend.Anf_ast.ImmIdentifier match_complete, on_succ_block, on_fail_block)
   in
   let get_block =
-    ALetIn (match_complete, ACExpr (get_field combined_res_cexp 0), ACExpr if_block)
+    ALetIn
+      ( match_complete
+      , ACExpr (get_field (cexpr_from_name combined_res_name) 0)
+      , ACExpr if_block )
   in
   return get_block
 ;;
 
 let if_match_fail_block combined_res_name on_fail_block =
-  if_match_block combined_res_name
-       (ACExpr (get_field combined_res_cexp 1))
-       on_fail_block 
+  if_match_block
+    combined_res_name
+    (ACExpr (get_field (cexpr_from_name combined_res_name) 1))
+    on_fail_block
 ;;
 
 let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = function
@@ -189,7 +191,7 @@ let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = fun
     return (CIfThenElse (imm, pe_aexp1, pe_aexp2))
   | CMatch (imm, pat_aexp_list) ->
     let target_exp = CImmExpr imm in
-    let rec help_fun pat res_exp prev_res cont =
+    let help_fun pat res_exp prev_res cont =
       let* combined_res = fresh_var "combined_res" in
       let* math_res_block = result_match_aexpr res_exp in
       let* pe_block = eliminate_pattern_match pat target_exp math_res_block in
@@ -199,14 +201,18 @@ let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = fun
       | Some prev_res -> if_match_fail_block prev_res new_match
       | None -> return new_match
     in
-    let fail_block match_res = if_match_fail_block match_res (ACExpr match_error) in
-    let* final_block =
-      List.fold_right
-        (fun (pat, anf_aexp) cont prev_res ->
-          let* pe_aexp = eliminate_from_aexpr anf_aexp in
-          help_fun pat aexp prev_res cont)
-        pat_aexp_list
-        fail_block
+    let fail_block = function
+      | Some match_res -> if_match_fail_block match_res (ACExpr match_error)
+      | None -> fail "Imposible error: match without pattern matchin?"
+    in
+    let final_block =
+      (List.fold_right
+         (fun (pat, anf_aexp) cont prev_res ->
+           let* pe_aexp = eliminate_from_aexpr anf_aexp in
+           help_fun pat pe_aexp prev_res cont)
+         pat_aexp_list
+         fail_block)
+        None
     in
     final_block
 

@@ -19,6 +19,6 @@ type single_pe_binding =
 
 type pe_decl =
   | ADSingleLet of rec_flag * single_pe_binding
-  | ADMutualRecDecl of rec_flag * single_pe_binding list (**List.length >= 2 *)
+  | ADMutualRecDecl of single_pe_binding list (**List.length >= 2 *)
 
 type pe_prog = pe_decl list
