@@ -154,23 +154,18 @@ let match_error =
     , CImmExpr Middleend.Anf_ast.ImmNil )
 ;;
 
-let if_match_block combined_res_name on_succ_block on_fail_block =
+let if_match_block combined_res on_succ_block on_fail_block =
   let* match_complete = fresh_var "match_comp" in
   let if_block =
     CIfThenElse
       (Middleend.Anf_ast.ImmIdentifier match_complete, on_succ_block, on_fail_block)
   in
-  let get_block =
-    ALetIn (match_complete, get_field (cexpr_from_name combined_res_name) 0, if_block)
-  in
+  let get_block = ALetIn (match_complete, get_field combined_res 0, if_block) in
   return get_block
 ;;
 
-let if_match_fail_block combined_res_name on_fail_block =
-  if_match_block
-    combined_res_name
-    (get_field (cexpr_from_name combined_res_name) 1)
-    on_fail_block
+let if_match_fail_block combined_res on_fail_block =
+  if_match_block combined_res (get_field combined_res 1) on_fail_block
 ;;
 
 let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, pe_expr) t = function
@@ -192,11 +187,11 @@ let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, pe_expr) t = f
       let* cont_block = cont (Some combined_res) in
       let new_match = ALetIn (combined_res, pe_block, cont_block) in
       match prev_res with
-      | Some prev_res -> if_match_fail_block prev_res new_match
+      | Some prev_res -> if_match_fail_block (cexpr_from_name prev_res) new_match
       | None -> return new_match
     in
     let fail_block = function
-      | Some match_res -> if_match_fail_block match_res match_error
+      | Some match_res -> if_match_fail_block (cexpr_from_name match_res) match_error
       | None -> fail "Imposible error: match without pattern matchin?"
     in
     let final_block =
@@ -219,7 +214,5 @@ and eliminate_from_aexpr : Middleend.Anf_ast.aexpr -> (state, pe_expr) t = funct
     let* pe_aexp = eliminate_from_aexpr aexp in
     let* match_res_block = result_match_aexpr pe_aexp in
     let* pe_block = eliminate_pattern_match pat pe_cexp match_res_block in
-    let* cres = fresh_var "let_combined_res" in
-    let* if_block = if_match_fail_block cres match_error in
-    return (ALetIn (cres, pe_block, if_block))
+    if_match_fail_block pe_block match_error
 ;;
