@@ -216,3 +216,64 @@ and eliminate_from_aexpr : Middleend.Anf_ast.aexpr -> (state, pe_expr) t = funct
     let* pe_block = eliminate_pattern_match pat pe_cexp match_res_block in
     if_match_fail_block pe_block match_error
 ;;
+
+let global_res_name = Format.sprintf "global_res%s" pe_suffix
+
+let eliminate_from_single_anf_binding
+  : Middleend.Anf_ast.single_anf_binding -> (state, single_pe_binding list) t
+  = function
+  | AFunLet (fun_name, args_pat, anf_aexp) ->
+    let* fun_body = eliminate_from_aexpr anf_aexp in
+    let* args_name =
+      map_list (fun _pat -> fresh_var (Format.sprintf "%s_arg" fun_name)) args_pat
+    in
+    let* math_comb_res =
+      List.fold_right2
+        (fun arg_name arg_pat cont ->
+          let* cont_block = cont in
+          eliminate_pattern_match arg_pat (cexpr_from_name arg_name) cont_block)
+        args_name
+        args_pat
+        (result_match_aexpr fun_body)
+    in
+    let* new_fun_body = if_match_fail_block math_comb_res match_error in
+    return [ AFunLet (fun_name, args_name, new_fun_body) ]
+  | ANotFunLet (pat, anf_aexp) ->
+    (* Typeinference ensure that all id are diff*)
+    let rec get_all_id acc = function
+      | PWildCard | PConstant _ -> acc
+      | PConstraint (pat, _tp) -> get_all_id acc pat
+      | PCons (pat1, pat2) -> get_all_id (get_all_id acc pat2) pat1
+      | PTuple plst -> List.fold_left get_all_id acc plst
+      | PIdentifier x -> x :: acc
+    in
+    let rec rename_all_id rename_fun pat =
+      let rec_call = rename_all_id rename_fun in
+      match pat with
+      | (PWildCard | PConstant _) as x -> x
+      | PConstraint (pat, _tp) -> rec_call pat
+      | PCons (pat1, pat2) -> PCons (rec_call pat1, rec_call pat2)
+      | PTuple plst -> PTuple (List.map rec_call plst)
+      | PIdentifier x -> PIdentifier (rename_fun x)
+    in
+    let* exp = eliminate_from_aexpr anf_aexp in
+    let id_names = get_all_id [] pat in
+    let rename_fun name = Format.sprintf "%s_inner%s" name pe_suffix in
+    let renamed_pat = rename_all_id rename_fun pat in
+    let renamed_var_exp =
+      CImmExpr
+        (Middleend.Anf_ast.ImmTuple
+           (List.map (fun nm -> Middleend.Anf_ast.ImmIdentifier (rename_fun nm)) id_names))
+    in
+    let* match_res = result_match_aexpr renamed_var_exp in
+    let* eliminated_block = eliminate_pattern_match renamed_pat exp match_res in
+    let* if_block = if_match_fail_block eliminated_block match_error in
+    let res_let = ANotFunLet (global_res_name, if_block) in
+    let other_lets =
+      List.mapi
+        (fun ind name ->
+          ANotFunLet (name, get_field (cexpr_from_name global_res_name) ind))
+        id_names
+    in
+    return (res_let :: other_lets)
+;;
