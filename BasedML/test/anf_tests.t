@@ -464,7 +464,7 @@
   > let ( + ) a b = a - b
   > let test_var = test (5 + 5) (6 + 6) (7 + 7)
   > EOF
-  let  _  = let anf_app_0 = ( + ) unbound_a_0 unbound_b_0 in
+  let  _ = let anf_app_0 = ( + ) unbound_a_0 unbound_b_0 in
    anf_app_0;;
   let  ( + )_0 a_0 b_0  = let anf_app_0 = ( - ) a_0 b_0 in
    anf_app_0;;
