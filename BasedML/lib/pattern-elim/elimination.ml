@@ -60,10 +60,10 @@ let cexpr_from_name name = CImmExpr (Middleend.Anf_ast.ImmIdentifier name)
 
 let result_match_aexpr exp =
   let* res = fresh_var "res" in
-  return (ALetIn (res, exp, ACExpr (result_match (Middleend.Anf_ast.ImmIdentifier res))))
+  return (ALetIn (res, exp, result_match (Middleend.Anf_ast.ImmIdentifier res)))
 ;;
 
-let rec eliminate_pattern_match : pattern -> cexpr -> aexpr -> (state, aexpr) t =
+let rec eliminate_pattern_match : pattern -> pe_expr -> pe_expr -> (state, pe_expr) t =
   fun pat target_exp cont ->
   (*
      RESULT CODE:
@@ -78,11 +78,9 @@ let rec eliminate_pattern_match : pattern -> cexpr -> aexpr -> (state, aexpr) t 
   let create_final_tag_check_box var_name tag cont_block =
     let* check_var = fresh_var var_name in
     let fin_block_in =
-      ACExpr
-        (CIfThenElse
-           (Middleend.Anf_ast.ImmIdentifier check_var, cont_block, ACExpr fail_match))
+      CIfThenElse (Middleend.Anf_ast.ImmIdentifier check_var, cont_block, fail_match)
     in
-    return (ALetIn (check_var, ACExpr (check_box_tag target_exp tag), fin_block_in))
+    return (ALetIn (check_var, check_box_tag target_exp tag, fin_block_in))
   in
   (*
      RESULT CODE:
@@ -96,19 +94,18 @@ let rec eliminate_pattern_match : pattern -> cexpr -> aexpr -> (state, aexpr) t 
     let* sub_pat_elim =
       eliminate_pattern_match sub_pat (cexpr_from_name field_var) cont_block
     in
-    return (ALetIn (field_var, ACExpr (get_field target_exp field_num), sub_pat_elim))
+    return (ALetIn (field_var, get_field target_exp field_num, sub_pat_elim))
   in
   match pat with
   | PConstraint (pat, _) -> eliminate_pattern_match pat target_exp cont
   | PWildCard -> return cont
-  | PIdentifier id_name -> return (ALetIn (id_name, ACExpr target_exp, cont))
+  | PIdentifier id_name -> return (ALetIn (id_name, target_exp, cont))
   | PConstant const ->
     let* const_check = fresh_var "const_check" in
     let if_block =
-      CIfThenElse (Middleend.Anf_ast.ImmIdentifier const_check, cont, ACExpr fail_match)
+      CIfThenElse (Middleend.Anf_ast.ImmIdentifier const_check, cont, fail_match)
     in
-    return
-      (ALetIn (const_check, ACExpr (compair_expr_cnst target_exp const), ACExpr if_block))
+    return (ALetIn (const_check, compair_expr_cnst target_exp const, if_block))
   | PCons (head_pat, tail_pat) ->
     (*
        RESULT CODE:
@@ -164,10 +161,7 @@ let if_match_block combined_res_name on_succ_block on_fail_block =
       (Middleend.Anf_ast.ImmIdentifier match_complete, on_succ_block, on_fail_block)
   in
   let get_block =
-    ALetIn
-      ( match_complete
-      , ACExpr (get_field (cexpr_from_name combined_res_name) 0)
-      , ACExpr if_block )
+    ALetIn (match_complete, get_field (cexpr_from_name combined_res_name) 0, if_block)
   in
   return get_block
 ;;
@@ -175,11 +169,11 @@ let if_match_block combined_res_name on_succ_block on_fail_block =
 let if_match_fail_block combined_res_name on_fail_block =
   if_match_block
     combined_res_name
-    (ACExpr (get_field (cexpr_from_name combined_res_name) 1))
+    (get_field (cexpr_from_name combined_res_name) 1)
     on_fail_block
 ;;
 
-let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = function
+let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, pe_expr) t = function
   | CImmExpr imm -> return (CImmExpr imm)
   | CApplication (cexp1, cexp2) ->
     let* pe_cexp1 = eliminate_from_cexpr cexp1 in
@@ -202,7 +196,7 @@ let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = fun
       | None -> return new_match
     in
     let fail_block = function
-      | Some match_res -> if_match_fail_block match_res (ACExpr match_error)
+      | Some match_res -> if_match_fail_block match_res match_error
       | None -> fail "Imposible error: match without pattern matchin?"
     in
     let final_block =
@@ -216,16 +210,16 @@ let rec eliminate_from_cexpr : Middleend.Anf_ast.cexpr -> (state, cexpr) t = fun
     in
     final_block
 
-and eliminate_from_aexpr : Middleend.Anf_ast.aexpr -> (state, aexpr) t = function
+and eliminate_from_aexpr : Middleend.Anf_ast.aexpr -> (state, pe_expr) t = function
   | ACExpr cexp ->
     let* pe_cexp = eliminate_from_cexpr cexp in
-    return (ACExpr pe_cexp)
+    return pe_cexp
   | ALetIn (pat, cexp, aexp) ->
     let* pe_cexp = eliminate_from_cexpr cexp in
     let* pe_aexp = eliminate_from_aexpr aexp in
     let* match_res_block = result_match_aexpr pe_aexp in
     let* pe_block = eliminate_pattern_match pat pe_cexp match_res_block in
     let* cres = fresh_var "let_combined_res" in
-    let* if_block = if_match_fail_block cres (ACExpr match_error) in
+    let* if_block = if_match_fail_block cres match_error in
     return (ALetIn (cres, pe_block, if_block))
 ;;

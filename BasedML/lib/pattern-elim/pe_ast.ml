@@ -4,18 +4,15 @@
 
 open Ast
 
-type cexpr =
-  | CApplication of cexpr * cexpr
-  | CIfThenElse of Middleend.Anf_ast.immexpr * aexpr * aexpr
+type pe_expr =
+  | CApplication of pe_expr * pe_expr
+  | CIfThenElse of Middleend.Anf_ast.immexpr * pe_expr * pe_expr
   | CImmExpr of Middleend.Anf_ast.immexpr
-
-and aexpr =
-  | ALetIn of string * aexpr * aexpr
-  | ACExpr of cexpr
+  | ALetIn of string * pe_expr * pe_expr
 
 type single_pe_binding =
-  | AFunLet of string * string list * aexpr
-  | ANotFunLet of string * aexpr
+  | AFunLet of string * string list * pe_expr
+  | ANotFunLet of string * pe_expr
 
 type pe_decl =
   | ADSingleLet of rec_flag * single_pe_binding
