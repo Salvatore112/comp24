@@ -41,19 +41,20 @@ let compair_expr_cnst cexp cnst =
 ;;
 
 let result_match res =
-  CImmExpr (Middleend.Anf_ast.ImmTuple [ Middleend.Anf_ast.ImmInt 1; res ])
+  CImmExpr (Middleend.Anf_ast.ImmTuple [ Middleend.Anf_ast.ImmBool true; res ])
 ;;
 
 let fail_match =
   CImmExpr
-    (Middleend.Anf_ast.ImmTuple [ Middleend.Anf_ast.ImmInt 0; Middleend.Anf_ast.ImmInt 0 ])
+    (Middleend.Anf_ast.ImmTuple
+       [ Middleend.Anf_ast.ImmBool false; Middleend.Anf_ast.ImmInt 0 ])
 ;;
 
 let pe_suffix = "_pe"
 
 let fresh_var name =
   let* cnt = read_counter in
-  return (Format.sprintf "%s_%d%s" name cnt pe_suffix)
+  return (Format.sprintf "%s_%d%s" name cnt pe_suffix) <* write_counter (cnt + 1)
 ;;
 
 let cexpr_from_name name = CImmExpr (Middleend.Anf_ast.ImmIdentifier name)
@@ -310,6 +311,10 @@ let eliminate_from_decl : Middleend.Anf_ast.anf_decl -> (state, pe_decl list) t 
 ;;
 
 let eliminate_from_prog anf_program =
-  let* decls_lsts = map_list eliminate_from_decl anf_program in
-  return (List.concat decls_lsts)
+  let help =
+    let* decls_lsts = map_list eliminate_from_decl anf_program in
+    return (List.concat decls_lsts)
+  in
+  let _st, res = run help 0 in
+  res
 ;;

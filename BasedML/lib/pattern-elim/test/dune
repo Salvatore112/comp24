@@ -1,0 +1,7 @@
+(library
+ (name pattern_elim_test)
+ (libraries base pattern_elim typeinference)
+ (modules test pe_to_str)
+ (preprocess
+  (pps ppx_expect))
+ (inline_tests))
